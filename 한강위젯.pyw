@@ -58,27 +58,23 @@ class HangangWidget(tk.Tk):
         y = self.winfo_y() + event.y - self._y
         self.geometry(f"+{x}+{y}")
 
-    def get_temperature(self):
-        try:
-            res = requests.get("https://api.ivl.is/hangangtemp", timeout=5)
-            res.raise_for_status()
-            data = res.json()
-            if data.get("success") and "temperature" in data and "time" in data:
-                temp = data["temperature"]
-                time = data["time"]
-                return f"수온: {temp}°C   시간: {time}"
-            else:
-                return "정보 없음"
-        except Exception:
-            return "정보 없음"
-
     def update_temperature(self):
-        def thread_func():
-            temp = self.get_temperature()
-            self.label.config(text=temp)
-        threading.Thread(target=thread_func, daemon=True).start()
-        # 10분(600,000ms)마다 반복 호출
-        self.after(600000, self.update_temperature)
+        def fetch_data():
+            try:
+                res = requests.get("https://api.ivl.is/hangangtemp", timeout=5)
+                data = res.json()
+                if data.get("success") and "temperature" in data and "time" in data:
+                    temp = data["temperature"]
+                    time = data["time"]
+                    self.label.config(text=f"수온: {temp}°C   시간: {time}")
+                else:
+                    self.label.config(text="정보 없음")
+            except Exception as e:
+                self.label.config(text="정보 없음")
+            finally:
+                # 반드시 메인스레드에서 반복 예약!
+                self.after(600000, self.update_temperature)
+        threading.Thread(target=fetch_data, daemon=True).start()
 
 if __name__ == "__main__":
     app = HangangWidget()
